@@ -36,7 +36,7 @@ const vertexai_2 = require("@genkit-ai/vertexai");
         (0, google_cloud_1.googleCloud)(),
         (0, vertexai_2.vertexAI)({ location: 'asia-northeast1' }),
     ],
-    logLevel: 'info',
+    logLevel: 'warn',
     enableTracingAndMetrics: true,
 });
 exports.menuSuggestionFlow = (0, flow_1.defineFlow)({
@@ -44,6 +44,9 @@ exports.menuSuggestionFlow = (0, flow_1.defineFlow)({
     inputSchema: z.string(),
     outputSchema: z.any(),
 }, async (subject) => {
+    if (!subject) {
+        throw new Error("Input string is required.");
+    }
     const llmResponse = await (0, ai_1.generate)({
         prompt: `${subject}をテーマにしたレストランのメニューを提案して`,
         model: vertexai_1.gemini15Flash,

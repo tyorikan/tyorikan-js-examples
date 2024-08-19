@@ -11,7 +11,7 @@ configureGenkit({
     googleCloud(),
     vertexAI({ location: 'asia-northeast1' }),
   ],
-  logLevel: 'info',
+  logLevel: 'warn',
   enableTracingAndMetrics: true,
 });
 
@@ -22,6 +22,9 @@ export const menuSuggestionFlow = defineFlow(
     outputSchema: z.any(),
   },
   async (subject) => {
+    if (!subject) {
+      throw new Error("Input string is required.")
+    }
     const llmResponse = await generate({
       prompt: `${subject}をテーマにしたレストランのメニューを提案して`,
       model: gemini15Flash,
