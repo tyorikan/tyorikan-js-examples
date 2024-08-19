@@ -19,7 +19,7 @@ export const menuSuggestionFlow = defineFlow(
   {
     name: 'menuSuggestionFlow',
     inputSchema: z.string(),
-    outputSchema: z.string(),
+    outputSchema: z.any(),
   },
   async (subject) => {
     const llmResponse = await generate({
@@ -37,11 +37,11 @@ export const menuSuggestionFlow = defineFlow(
             name: z.string(),
             description: z.string(),
             price: z.number().describe('1 品あたりの金額は、400 円から 3,000 円までの範囲にして'),
-          })).describe('少なくとも 50 品以上のメニューを考えて')
+          })).describe('少なくとも 20 品以上のメニューを考えて')
         })
       }
     });
-    return llmResponse.text();
+    return llmResponse.output();
   }
 );
 

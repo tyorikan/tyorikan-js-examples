@@ -42,7 +42,7 @@ const vertexai_2 = require("@genkit-ai/vertexai");
 exports.menuSuggestionFlow = (0, flow_1.defineFlow)({
     name: 'menuSuggestionFlow',
     inputSchema: z.string(),
-    outputSchema: z.string(),
+    outputSchema: z.any(),
 }, async (subject) => {
     const llmResponse = await (0, ai_1.generate)({
         prompt: `${subject}をテーマにしたレストランのメニューを提案して`,
@@ -59,11 +59,11 @@ exports.menuSuggestionFlow = (0, flow_1.defineFlow)({
                     name: z.string(),
                     description: z.string(),
                     price: z.number().describe('1 品あたりの金額は、400 円から 3,000 円までの範囲にして'),
-                })).describe('少なくとも 50 品以上のメニューを考えて')
+                })).describe('少なくとも 20 品以上のメニューを考えて')
             })
         }
     });
-    return llmResponse.text();
+    return llmResponse.output();
 });
 (0, flow_1.startFlowsServer)();
 //# sourceMappingURL=index.js.map
