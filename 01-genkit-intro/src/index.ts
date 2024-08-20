@@ -40,10 +40,9 @@ export const menuSuggestionFlow = defineFlow(
             category: z.enum(['前菜・一品料理', 'メイン料理', 'ご飯もの・麺類', 'デザート', 'ドリンク']),
             name: z.string(),
             description: z.string(),
-            price: z.number()
-            .describe('1 品あたりの金額は、400 円から 3,000 円までの範囲にして'),
+            price: z.number(),
           }))
-          .describe('少なくとも 20 品以上のメニューを考えて')
+          // .describe('少なくとも 20 品以上のメニューを考えて')
         })
       }
     });
