@@ -24,7 +24,7 @@ configureGenkit({
   plugins: [
     vertexAI({ location: "asia-northeast1" })
   ],
-  logLevel: 'debug',
+  logLevel: 'warn',
   enableTracingAndMetrics: false,
 });
 
