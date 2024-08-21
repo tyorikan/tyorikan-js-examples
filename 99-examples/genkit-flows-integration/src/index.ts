@@ -5,17 +5,16 @@ import { gemini15Flash, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai
 import * as z from 'zod';
 import { googleCloud } from '@genkit-ai/google-cloud';
 import { defineFirestoreRetriever } from "@genkit-ai/firebase";
-import {retrieve} from "@genkit-ai/ai/retriever";
-
+import { retrieve } from "@genkit-ai/ai/retriever";
 import { embed } from "@genkit-ai/ai/embedder";
 import { applicationDefault, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
-
 import { chunk } from "llm-chunk";
 import pdf from "pdf-parse";
 import { readFile } from "fs/promises";
 import path from "path";
 
+// Configuration for indexing menu data
 const indexConfig = {
     collection: "menuInfo",
     contentField: "description",
@@ -23,11 +22,13 @@ const indexConfig = {
     embedder: textEmbeddingGecko,
 };
 
+// Initialize Firebase Admin SDK
 const app = initializeApp({
     credential: applicationDefault()
 });
 const firestore = getFirestore(app);
 
+// Define Firestore retriever for menu QA
 const menuQARef = defineFirestoreRetriever({
     name: "menuRetrieverRef",
     firestore: firestore,
@@ -36,8 +37,9 @@ const menuQARef = defineFirestoreRetriever({
     vectorField: "embedding",
     embedder: textEmbeddingGecko,
     distanceMeasure: "COSINE",
-  });
+});
 
+// Configure Genkit with plugins and logging
 configureGenkit({
     plugins: [
         googleCloud(),
@@ -47,6 +49,7 @@ configureGenkit({
     enableTracingAndMetrics: true,
 });
 
+// Define flow for generating menu suggestions
 export const menuSuggestionFlow = defineFlow(
     {
         name: 'menuSuggestionFlow',
@@ -82,6 +85,7 @@ export const menuSuggestionFlow = defineFlow(
     }
 );
 
+// Define flow for indexing menu data from a PDF file
 export const indexMenu = defineFlow(
     {
         name: "indexMenu",
@@ -91,38 +95,39 @@ export const indexMenu = defineFlow(
     async (filePath: string) => {
         filePath = path.resolve(filePath);
 
-        // Read the PDF.
+        // Extract text from PDF
         const pdfTxt = await run("extract-text", () => extractTextFromPdf(filePath));
 
-        // Divide the PDF text into segments.
+        // Chunk the text into segments
         const chunks = await run("chunk-it", async () => chunk(pdfTxt));
 
-        // Add chunks to the index.
+        // Index the chunks into Firestore
         await run("index-chunks", async () => indexToFirestore(chunks));
     }
 );
 
+// Define flow for answering questions about the menu
 export const menuQA = defineFlow(
     {
-      name: 'menuQA',
-      inputSchema: z.string(),
-      outputSchema: z.string()
+        name: 'menuQA',
+        inputSchema: z.string(),
+        outputSchema: z.string()
     },
     async (input: string) => {
-      // retrieve relevant documents
-      const docs = await retrieve({
-        retriever: menuQARef,
-        query: input,
-        options: {
-          k: 3,
-          limit: 20,
-        },
-      });
-  
-      // generate a response
-      const llmResponse = await generate({
-        model: gemini15Flash,
-        prompt: `
+        // Retrieve relevant documents from Firestore
+        const docs = await retrieve({
+            retriever: menuQARef,
+            query: input,
+            options: {
+                k: 3,
+                limit: 20,
+            },
+        });
+
+        // Generate a response using the retrieved documents
+        const llmResponse = await generate({
+            model: gemini15Flash,
+            prompt: `
       あなたは、レストランのメニューにある食べ物についての質問に答えることができる、役に立つ AI アシスタントとして行動します。
       質問に答えるのに、提供されたコンテキストのみを使用してください。
       わからない場合は、答えをでっち上げないでください。
@@ -130,14 +135,15 @@ export const menuQA = defineFlow(
   
       Question: ${input}
       `,
-        context: docs,
-      });
-  
-      const output = llmResponse.text();
-      return output;
-    }
-  );
+            context: docs,
+        });
 
+        const output = llmResponse.text();
+        return output;
+    }
+);
+
+// Function to index text chunks into Firestore
 async function indexToFirestore(data: string[]) {
     for (const text of data) {
         const embedding = await embed({
@@ -151,7 +157,7 @@ async function indexToFirestore(data: string[]) {
     }
 }
 
-// TODO: Read from GCS object (use Bucket mount feature)
+// Function to extract text from a PDF file
 async function extractTextFromPdf(filePath: string) {
     const pdfFile = path.resolve(filePath);
     const dataBuffer = await readFile(pdfFile);
@@ -159,4 +165,5 @@ async function extractTextFromPdf(filePath: string) {
     return data.text;
 }
 
+// Start the Genkit flows server
 startFlowsServer();
