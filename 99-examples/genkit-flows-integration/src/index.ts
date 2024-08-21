@@ -95,6 +95,7 @@ export const indexMenu = defineFlow(
   async (filePath: string) => {
     if (!!process.env.MOUNT_PATH) {
       filePath = path.join(process.env.MOUNT_PATH, filePath);
+    } else {
       filePath = path.resolve(filePath);
     }
 
