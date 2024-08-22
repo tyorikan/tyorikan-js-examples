@@ -77,7 +77,6 @@ export const menuSuggestionFlow = defineFlow(
             description: z.string(),
             price: z.number(),
           }))
-          // .describe('少なくとも 20 品以上のメニューを考えて')
         })
       }
     });

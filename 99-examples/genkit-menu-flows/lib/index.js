@@ -42,16 +42,19 @@ const llm_chunk_1 = require("llm-chunk");
 const pdf_parse_1 = __importDefault(require("pdf-parse"));
 const promises_1 = require("fs/promises");
 const path_1 = __importDefault(require("path"));
+// Configuration for indexing menu data
 const indexConfig = {
     collection: "menuInfo",
     contentField: "description",
     vectorField: "embedding",
     embedder: vertexai_1.textEmbeddingGecko,
 };
+// Initialize Firebase Admin SDK
 const app = (0, app_1.initializeApp)({
     credential: (0, app_1.applicationDefault)()
 });
 const firestore = (0, firestore_1.getFirestore)(app);
+// Define Firestore retriever for menu QA
 const menuQARef = (0, firebase_1.defineFirestoreRetriever)({
     name: "menuRetrieverRef",
     firestore: firestore,
@@ -61,6 +64,7 @@ const menuQARef = (0, firebase_1.defineFirestoreRetriever)({
     embedder: vertexai_1.textEmbeddingGecko,
     distanceMeasure: "COSINE",
 });
+// Configure Genkit with plugins and logging
 (0, core_1.configureGenkit)({
     plugins: [
         (0, google_cloud_1.googleCloud)(),
@@ -69,6 +73,7 @@ const menuQARef = (0, firebase_1.defineFirestoreRetriever)({
     logLevel: 'warn',
     enableTracingAndMetrics: true,
 });
+// Define flow for generating menu suggestions
 exports.menuSuggestionFlow = (0, flow_1.defineFlow)({
     name: 'menuSuggestionFlow',
     inputSchema: z.string(),
@@ -94,31 +99,37 @@ exports.menuSuggestionFlow = (0, flow_1.defineFlow)({
                     description: z.string(),
                     price: z.number(),
                 }))
-                // .describe('少なくとも 20 品以上のメニューを考えて')
             })
         }
     });
     return llmResponse.output();
 });
+// Define flow for indexing menu data from a PDF file
 exports.indexMenu = (0, flow_1.defineFlow)({
     name: "indexMenu",
     inputSchema: z.string().describe("PDF file path"),
     outputSchema: z.void(),
 }, async (filePath) => {
-    filePath = path_1.default.resolve(filePath);
-    // Read the PDF.
+    if (!!process.env.MOUNT_PATH) {
+        filePath = path_1.default.join(process.env.MOUNT_PATH, filePath);
+    }
+    else {
+        filePath = path_1.default.resolve(filePath);
+    }
+    // Extract text from PDF
     const pdfTxt = await (0, flow_1.run)("extract-text", () => extractTextFromPdf(filePath));
-    // Divide the PDF text into segments.
+    // Chunk the text into segments
     const chunks = await (0, flow_1.run)("chunk-it", async () => (0, llm_chunk_1.chunk)(pdfTxt));
-    // Add chunks to the index.
+    // Index the chunks into Firestore
     await (0, flow_1.run)("index-chunks", async () => indexToFirestore(chunks));
 });
+// Define flow for answering questions about the menu
 exports.menuQA = (0, flow_1.defineFlow)({
     name: 'menuQA',
     inputSchema: z.string(),
     outputSchema: z.string()
 }, async (input) => {
-    // retrieve relevant documents
+    // Retrieve relevant documents from Firestore
     const docs = await (0, retriever_1.retrieve)({
         retriever: menuQARef,
         query: input,
@@ -127,7 +138,7 @@ exports.menuQA = (0, flow_1.defineFlow)({
             limit: 20,
         },
     });
-    // generate a response
+    // Generate a response using the retrieved documents
     const llmResponse = await (0, ai_1.generate)({
         model: vertexai_1.gemini15Flash,
         prompt: `
@@ -143,6 +154,7 @@ exports.menuQA = (0, flow_1.defineFlow)({
     const output = llmResponse.text();
     return output;
 });
+// Function to index text chunks into Firestore
 async function indexToFirestore(data) {
     for (const text of data) {
         const embedding = await (0, embedder_1.embed)({
@@ -155,12 +167,13 @@ async function indexToFirestore(data) {
         });
     }
 }
-// TODO: Read from GCS object (use Bucket mount feature)
+// Function to extract text from a PDF file
 async function extractTextFromPdf(filePath) {
     const pdfFile = path_1.default.resolve(filePath);
     const dataBuffer = await (0, promises_1.readFile)(pdfFile);
     const data = await (0, pdf_parse_1.default)(dataBuffer);
     return data.text;
 }
+// Start the Genkit flows server
 (0, flow_1.startFlowsServer)();
 //# sourceMappingURL=index.js.map

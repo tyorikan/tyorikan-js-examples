@@ -6,10 +6,10 @@ import { gemini15Flash, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai
 import * as z from 'zod';
 import { googleCloud } from '@genkit-ai/google-cloud';
 
-import {retrieve} from "@genkit-ai/ai/retriever";
+import { retrieve } from "@genkit-ai/ai/retriever";
 
-import {initializeApp} from "firebase-admin/app";
-import {getFirestore} from "firebase-admin/firestore";
+import { initializeApp } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 
 const app = initializeApp();
 const firestore = getFirestore(app);

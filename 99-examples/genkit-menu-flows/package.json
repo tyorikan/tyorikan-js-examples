@@ -1,5 +1,5 @@
 {
-  "name": "genkit-flows-integration",
+  "name": "genkit-menu-flows",
   "version": "1.0.0",
   "main": "lib/index.js",
   "scripts": {
