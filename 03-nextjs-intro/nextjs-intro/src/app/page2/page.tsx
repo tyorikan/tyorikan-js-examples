@@ -1,17 +1,17 @@
 "use client";
 import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 export default function Page2() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const name = searchParams.get('name') || ''; // URLからnameを取得
+  const name = localStorage.getItem('name') || ''; // Retrieve name from localStorage
 
   const [age, setAge] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    router.push(`/page3?name=${name}&age=${age}`); // フォームデータをURLに含めて遷移
+    localStorage.setItem('age', age); // Store age in localStorage
+    router.push('/page3'); // Navigate to Page3 without query parameters
   };
 
   return (

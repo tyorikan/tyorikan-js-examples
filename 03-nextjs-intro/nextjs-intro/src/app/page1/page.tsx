@@ -8,7 +8,8 @@ export default function Page1() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    router.push(`/page2?name=${name}`); // フォームデータをURLに含めて遷移
+    localStorage.setItem('name', name); // Store name in localStorage
+    router.push('/page2'); // Navigate to Page2 without query parameters
   };
 
   return (

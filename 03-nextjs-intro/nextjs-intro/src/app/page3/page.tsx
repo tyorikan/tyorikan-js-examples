@@ -1,13 +1,13 @@
 "use client";
-import { useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 
 export default function Page3() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const name = searchParams.get('name') || ''; // URLからnameを取得
-  const age = searchParams.get('age') || ''; // URLからageを取得
+  const name = localStorage.getItem('name') || ''; // Retrieve name from localStorage
+  const age = localStorage.getItem('age') || ''; // Retrieve age from localStorage
 
+  // Consider clearing localStorage after displaying data to avoid persistence across sessions.
+  // localStorage.clear();
 
   return (
     <div>
