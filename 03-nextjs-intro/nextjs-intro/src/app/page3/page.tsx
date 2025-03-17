@@ -1,13 +1,21 @@
 "use client";
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function Page3() {
   const router = useRouter();
-  const name = localStorage.getItem('name') || ''; // Retrieve name from localStorage
-  const age = localStorage.getItem('age') || ''; // Retrieve age from localStorage
+  const [name, setName] = useState<string>("");
+  const [age, setAge] = useState<string>("");
 
-  // Consider clearing localStorage after displaying data to avoid persistence across sessions.
-  // localStorage.clear();
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        // You're on the client-side, so you can access localStorage
+        setName(localStorage.getItem('name') || '');
+        setAge(localStorage.getItem('age') || '');
+        // Consider clearing localStorage after displaying data, if needed.
+        // localStorage.clear();
+    }
+  }, []);
 
   return (
     <div>

@@ -1,4 +1,5 @@
 "use client";
+import Image from 'next/image'; 
 import { useState } from 'react';
 import styles from './SuggestMenu.module.css'; // Import the CSS module
 
@@ -69,9 +70,13 @@ export default function SuggestMenu() {
 
       const data: GeneratedMenu = await response.json();
       setGeneratedMenu(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || 'An unexpected error occurred');
+      if (err instanceof Error) {
+        setError(err.message || 'An unexpected error occurred');
+      } else {
+        setError('An unexpected error occurred');
+      }
       setGeneratedMenu(null);
     }
   };
@@ -157,7 +162,12 @@ export default function SuggestMenu() {
               <li key={index}>{step}</li>
             ))}
           </ul>
-          <img src={generatedMenu.aiGeneratedImageUrl} alt="AI Generated Menu" />
+          <Image
+            src={generatedMenu.aiGeneratedImageUrl}
+            alt="AI Generated Menu"
+            width={300} // 例: 幅を300pxに設定
+            height={200} // 例: 高さを200pxに設定
+          />
         </div>
       )}
     </div>

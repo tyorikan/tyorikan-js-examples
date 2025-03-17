@@ -1,16 +1,24 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function Page2() {
   const router = useRouter();
-  const name = localStorage.getItem('name') || ''; // Retrieve name from localStorage
-
+  const [name, setName] = useState<string>("");
   const [age, setAge] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Only access localStorage in the browser
+      setName(localStorage.getItem('name') || '');
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('age', age); // Store age in localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('age', age); // Store age in localStorage
+    }
     router.push('/page3'); // Navigate to Page3 without query parameters
   };
 
