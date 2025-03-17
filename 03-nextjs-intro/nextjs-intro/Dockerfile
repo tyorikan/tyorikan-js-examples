@@ -1,36 +1,36 @@
-# Use a Node.js base image.  Choose a version compatible with your project.
+# --- Builder Stage ---
 FROM node:22-alpine as builder
 
-# Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json (if available)
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install --production
+# Install dependencies (including devDependencies for build)
+RUN npm install
 
-# Copy the rest of the application code
 COPY . .
 
-# Build the Next.js application
+# Build the Next.js application in standalone mode
 RUN npm run build
 
-
-# Production image based on a smaller base image
+# --- Production Stage ---
 FROM node:22-alpine
 
-# Set working directory
 WORKDIR /app
 
-# Copy only the necessary files from the builder stage.
-COPY --from=builder /app/.next ./.next
+# Copy the standalone output and public folder
+COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next/static ./.next/static
 
-# Expose the port Next.js uses (default is 3000)
+# Copy package.json for production
+COPY --from=builder /app/package.json ./package.json
+
+# Install only production dependencies
+RUN npm install --production --ignore-scripts
+
+# Expose the port
 EXPOSE 3000
 
-# Start the Next.js server.  This is crucial for Cloud Run.
-CMD ["npm", "start"]
+# Start the standalone server
+CMD ["node", "server.js"]
