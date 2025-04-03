@@ -1,74 +1,51 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.menuSuggestionFlow = void 0;
-const ai_1 = require("@genkit-ai/ai");
-const core_1 = require("@genkit-ai/core");
-const flow_1 = require("@genkit-ai/flow");
+const genkit_1 = require("genkit");
+const express_1 = require("@genkit-ai/express");
 const vertexai_1 = require("@genkit-ai/vertexai");
-const z = __importStar(require("zod"));
 const google_cloud_1 = require("@genkit-ai/google-cloud");
-const vertexai_2 = require("@genkit-ai/vertexai");
-(0, core_1.configureGenkit)({
-    plugins: [
-        (0, google_cloud_1.googleCloud)(),
-        (0, vertexai_2.vertexAI)({ location: 'asia-northeast1' }),
-    ],
-    logLevel: 'warn',
-    enableTracingAndMetrics: true,
+const logging_1 = require("genkit/logging");
+logging_1.logger.setLogLevel('debug');
+(0, google_cloud_1.enableGoogleCloudTelemetry)({});
+const ai = (0, genkit_1.genkit)({
+    plugins: [(0, vertexai_1.vertexAI)({ location: 'us-central1' }),],
+    model: vertexai_1.gemini20Flash,
 });
-exports.menuSuggestionFlow = (0, flow_1.defineFlow)({
+const outputSchema = genkit_1.z.object({
+    restaurant_name: genkit_1.z.string(),
+    restaurant_concept: genkit_1.z.string(),
+    menus: genkit_1.z.array(genkit_1.z.object({
+        category: genkit_1.z.enum(['前菜・一品料理', 'メイン料理', 'ご飯もの・麺類', 'デザート', 'ドリンク']),
+        name: genkit_1.z.string(),
+        description: genkit_1.z.string(),
+        price: genkit_1.z.number(),
+    })).describe('少なくとも 20 品以上のメニューを考えて')
+});
+exports.menuSuggestionFlow = ai.defineFlow({
     name: 'menuSuggestionFlow',
-    inputSchema: z.string(),
-    outputSchema: z.any(),
-}, async (subject) => {
-    if (!subject) {
+    inputSchema: genkit_1.z.string(),
+    outputSchema: outputSchema,
+}, async (input) => {
+    if (!input) {
         throw new Error("Input string is required.");
     }
-    const llmResponse = await (0, ai_1.generate)({
-        prompt: `${subject}をテーマにしたレストランのメニューを提案して`,
-        model: vertexai_1.gemini15Flash,
-        config: {
-            temperature: 1,
-        },
-        output: {
-            format: 'json',
-            schema: z.object({
-                restaurant_name: z.string(),
-                restaurant_concept: z.string(),
-                menus: z.array(z.object({
-                    category: z.enum(['前菜・一品料理', 'メイン料理', 'ご飯もの・麺類', 'デザート', 'ドリンク']),
-                    name: z.string(),
-                    description: z.string(),
-                    price: z.number(),
-                }))
-                // .describe('少なくとも 20 品以上のメニューを考えて')
-            })
-        }
+    const llmResponse = await ai.generate({
+        prompt: `${input}をテーマにしたレストランのメニューを提案して`,
+        model: vertexai_1.gemini20Flash,
+        config: { temperature: 1 },
+        output: { format: 'json', schema: outputSchema }
     });
-    return llmResponse.output();
+    if (llmResponse.output === null) {
+        throw new Error("Failed to generate a valid menu.");
+    }
+    return llmResponse.output;
 });
-(0, flow_1.startFlowsServer)();
+(0, express_1.startFlowServer)({
+    flows: [exports.menuSuggestionFlow],
+    port: 8080,
+    cors: {
+        origin: '*',
+    },
+});
 //# sourceMappingURL=index.js.map

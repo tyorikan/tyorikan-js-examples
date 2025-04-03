@@ -1,53 +1,55 @@
-import { generate } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
-import { gemini15Flash } from '@genkit-ai/vertexai';
-import * as z from 'zod';
-import { googleCloud } from '@genkit-ai/google-cloud';
-import { vertexAI } from '@genkit-ai/vertexai';
+import { genkit, z } from 'genkit';
+import { startFlowServer } from '@genkit-ai/express';
+import { gemini20Flash, vertexAI } from '@genkit-ai/vertexai';
+import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
+import { logger } from 'genkit/logging';
 
-configureGenkit({
-  plugins: [
-    googleCloud(),
-    vertexAI({ location: 'asia-northeast1' }),
-  ],
-  logLevel: 'warn',
-  enableTracingAndMetrics: true,
+logger.setLogLevel('debug');
+enableGoogleCloudTelemetry({});
+
+const ai = genkit({
+  plugins: [vertexAI({ location: 'us-central1' }),],
+  model: gemini20Flash,
 });
 
-export const menuSuggestionFlow = defineFlow(
+const outputSchema = z.object({
+  restaurant_name: z.string(),
+  restaurant_concept: z.string(),
+  menus: z.array(z.object({
+    category: z.enum(['前菜・一品料理', 'メイン料理', 'ご飯もの・麺類', 'デザート', 'ドリンク']),
+    name: z.string(),
+    description: z.string(),
+    price: z.number(),
+  })).describe('少なくとも 20 品以上のメニューを考えて')
+})
+
+export const menuSuggestionFlow = ai.defineFlow(
   {
     name: 'menuSuggestionFlow',
     inputSchema: z.string(),
-    outputSchema: z.any(),
+    outputSchema: outputSchema,
   },
-  async (subject) => {
-    if (!subject) {
+  async (input) => {
+    if (!input) {
       throw new Error("Input string is required.")
     }
-    const llmResponse = await generate({
-      prompt: `${subject}をテーマにしたレストランのメニューを提案して`,
-      model: gemini15Flash,
-      config: {
-        temperature: 1,
-      },
-      output: {
-        format: 'json',
-        schema: z.object({
-          restaurant_name: z.string(),
-          restaurant_concept: z.string(),
-          menus: z.array(z.object({
-            category: z.enum(['前菜・一品料理', 'メイン料理', 'ご飯もの・麺類', 'デザート', 'ドリンク']),
-            name: z.string(),
-            description: z.string(),
-            price: z.number(),
-          }))
-          // .describe('少なくとも 20 品以上のメニューを考えて')
-        })
-      }
+    const llmResponse = await ai.generate({
+      prompt: `${input}をテーマにしたレストランのメニューを提案して`,
+      model: gemini20Flash,
+      config: { temperature: 1 },
+      output: { format: 'json', schema: outputSchema }
     });
-    return llmResponse.output();
+    if (llmResponse.output === null) {
+      throw new Error("Failed to generate a valid menu.");
+    }
+    return llmResponse.output;
   }
 );
 
-startFlowsServer();
+startFlowServer({
+  flows: [menuSuggestionFlow],
+  port: 8080,
+  cors: {
+    origin: '*',
+  },
+})
