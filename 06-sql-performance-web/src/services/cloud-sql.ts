@@ -53,7 +53,7 @@ export async function executeSqlQuery(config: CloudSQLConfig, query: string): Pr
     user: config.dbUser,
     password: config.dbPassword,
     database: config.dbName,
-    port: 5432,
+    port: config.connectionType === 'managedConnectionPooling' ? 6432 : 5432,
   });
 
   const startTime = performance.now();
@@ -74,5 +74,3 @@ export async function executeSqlQuery(config: CloudSQLConfig, query: string): Pr
     await client.end();
   }
 }
-
-    
