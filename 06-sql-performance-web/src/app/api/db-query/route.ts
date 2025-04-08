@@ -16,6 +16,19 @@ function percentile(arr: number[], p: number) {
   return sortedArr[i] + (sortedArr[i + 1] - sortedArr[i]) * fraction;
 }
 
+// Function to calculate throughput in Mbps or Gbps
+function calculateThroughput(totalData: number, totalTimeSeconds: number): { value: number, unit: string } {
+  const bitsPerSecond = totalData * 8 / totalTimeSeconds; // bits per second
+  const mbps = bitsPerSecond / 1000000;
+
+  if (mbps >= 1000) {
+    const gbps = mbps / 1000;
+    return { value: gbps, unit: 'Gbps' };
+  } else {
+    return { value: mbps, unit: 'Mbps' };
+  }
+}
+
 export async function POST(request: Request) {
   try {
     // Parse the request body as JSON
@@ -37,7 +50,7 @@ export async function POST(request: Request) {
     const numQueries = 10000;
 
     // Helper function to execute queries and measure latency and throughput
-    async function executeAndMeasure(config: CloudSQLConfig, query: string): Promise<{ latencies: number[], throughput: number }> {
+    async function executeAndMeasure(config: CloudSQLConfig, query: string): Promise<{ latencies: number[], throughputValue: number, throughputUnit: string }> {
       const latencies: number[] = [];
       let totalExecutionTime = 0;
       let totalRowsReturned = 0;
@@ -56,9 +69,12 @@ export async function POST(request: Request) {
       await Promise.all(promises);
       const endTime = performance.now();
       const totalTimeSeconds = (endTime - startTime) / 1000;
-      const throughput = totalRowsReturned / totalTimeSeconds;
 
-      return { latencies, throughput };
+      // Estimate data size: assume each row is 1KB
+      const totalDataTransferred = totalRowsReturned * 1024; // in bytes
+      const { value: throughputValue, unit: throughputUnit } = calculateThroughput(totalDataTransferred, totalTimeSeconds);
+
+      return { latencies, throughputValue, throughputUnit };
     }
 
     // Execute the queries for both configurations
@@ -83,13 +99,15 @@ export async function POST(request: Request) {
         p99: directVpc99th,
         p95: directVpc95th,
         p50: directVpc50th,
-        throughput: directVpcResult.throughput,
+        throughputValue: directVpcResult.throughputValue,
+        throughputUnit: directVpcResult.throughputUnit,
       },
       managedConnectionPooling: {
         p99: managedConnectionPooling99th,
         p95: managedConnectionPooling95th,
         p50: managedConnectionPooling50th,
-        throughput: managedConnectionPoolingResult.throughput,
+        throughputValue: managedConnectionPoolingResult.throughputValue,
+        throughputUnit: managedConnectionPoolingResult.throughputUnit,
       },
     });
   } catch (error) {

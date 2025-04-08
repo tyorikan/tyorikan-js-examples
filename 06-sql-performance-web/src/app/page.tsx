@@ -43,13 +43,15 @@ interface TestResult {
     p99: number;
     p95: number;
     p50: number;
-    throughput: number;
+    throughputValue: number;
+    throughputUnit: string;
   };
   managedConnectionPooling: {
     p99: number;
     p95: number;
     p50: number;
-    throughput: number;
+    throughputValue: number;
+    throughputUnit: string;
   };
 }
 
@@ -253,15 +255,15 @@ export default function Home() {
       setQpsData([
         {
           name: "Queries Per Second",
-          directVpc: testResult.directVpc.throughput,
-          managedConnectionPooling: testResult.managedConnectionPooling.throughput,
+          directVpc: 100, //testResult.directVpc.throughputValue,
+          managedConnectionPooling: 100, //testResult.managedConnectionPooling.throughputValue,
         },
       ]);
       setThroughputData([
         {
           name: "Throughput",
-          directVpc: testResult.directVpc.throughput,
-          managedConnectionPooling: testResult.managedConnectionPooling.throughput,
+          directVpc: testResult.directVpc.throughputValue,
+          managedConnectionPooling: testResult.managedConnectionPooling.throughputValue,
         },
       ]);
     }
@@ -445,7 +447,7 @@ export default function Home() {
             description="Visual comparison of throughput between Direct VPC and Managed Connection Pooling."
             dataKey="name"
             name="Throughput"
-            unit="rows/sec"
+            unit={testResult.directVpc.throughputUnit}
           />
 
           {/* Consolidated Table */}
@@ -475,13 +477,13 @@ export default function Home() {
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">Queries Per Second (QPS)</TableCell>
-                <TableCell>{testResult.directVpc.throughput.toFixed(2)}</TableCell>
-                <TableCell>{testResult.managedConnectionPooling.throughput.toFixed(2)}</TableCell>
+                <TableCell>TBD</TableCell>
+                <TableCell>TBD</TableCell>
               </TableRow>
               <TableRow>
-                <TableCell className="font-medium">Throughput (rows/sec)</TableCell>
-                <TableCell>{testResult.directVpc.throughput.toFixed(2)}</TableCell>
-                <TableCell>{testResult.managedConnectionPooling.throughput.toFixed(2)}</TableCell>
+                <TableCell className="font-medium">Throughput ({testResult.directVpc.throughputUnit})</TableCell>
+                <TableCell>{testResult.directVpc.throughputValue.toFixed(2)}</TableCell>
+                <TableCell>{testResult.managedConnectionPooling.throughputValue.toFixed(2)}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
