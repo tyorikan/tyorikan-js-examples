@@ -37,24 +37,34 @@ export async function POST(request: Request) {
     const numQueries = 10000;
 
     // Helper function to execute queries and measure latency
-    async function executeAndMeasure(config: CloudSQLConfig, query: string): Promise<number[]> {
+    async function executeAndMeasure(config: CloudSQLConfig, query: string): Promise<{ latencies: number[], throughput: number }> {
       const latencies: number[] = [];
+      let totalExecutionTime = 0;
       const promises: Promise<QueryResult>[] = [];
 
+      const startTime = performance.now();
       for (let i = 0; i < numQueries; i++) {
         promises.push(executeSqlQuery(config, query).then(result => {
           latencies.push(result.executionTimeMs);
+          totalExecutionTime += result.executionTimeMs;
           return result;
         }));
       }
 
       await Promise.all(promises);
-      return latencies;
+      const endTime = performance.now();
+      const totalTimeSeconds = (endTime - startTime) / 1000;
+      const throughput = numQueries / totalTimeSeconds;
+
+      return { latencies, throughput };
     }
 
     // Execute the queries for both configurations
-    const directVpcLatencies = await executeAndMeasure(directVpcConfig, query);
-    const managedConnectionPoolingLatencies = await executeAndMeasure(managedConnectionPoolingConfig, query);
+    const directVpcResult = await executeAndMeasure(directVpcConfig, query);
+    const managedConnectionPoolingResult = await executeAndMeasure(managedConnectionPoolingConfig, query);
+
+    const directVpcLatencies = directVpcResult.latencies;
+    const managedConnectionPoolingLatencies = managedConnectionPoolingResult.latencies;
 
     // Calculate percentiles
     const directVpc99th = percentile(directVpcLatencies, 99);
@@ -71,11 +81,13 @@ export async function POST(request: Request) {
         p99: directVpc99th,
         p95: directVpc95th,
         p50: directVpc50th,
+        throughput: directVpcResult.throughput,
       },
       managedConnectionPooling: {
         p99: managedConnectionPooling99th,
         p95: managedConnectionPooling95th,
         p50: managedConnectionPooling50th,
+        throughput: managedConnectionPoolingResult.throughput,
       },
     });
   } catch (error) {

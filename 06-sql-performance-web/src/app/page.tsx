@@ -43,11 +43,13 @@ interface TestResult {
     p99: number;
     p95: number;
     p50: number;
+    throughput: number;
   };
   managedConnectionPooling: {
     p99: number;
     p95: number;
     p50: number;
+    throughput: number;
   };
 }
 
@@ -171,6 +173,7 @@ export default function Home() {
   const [p99Data, setP99Data] = useState<ChartDataSet>([]);
   const [p95Data, setP95Data] = useState<ChartDataSet>([]);
   const [p50Data, setP50Data] = useState<ChartDataSet>([]);
+  const [throughputData, setThroughputData] = useState<ChartDataSet>([]);
 
   const handleConfigChange = (
     configType: "directVpc" | "managedConnectionPooling",
@@ -247,6 +250,13 @@ export default function Home() {
           name: "50th Percentile",
           directVpc: testResult.directVpc.p50,
           managedConnectionPooling: testResult.managedConnectionPooling.p50,
+        },
+      ]);
+      setThroughputData([
+        {
+          name: "Throughput",
+          directVpc: testResult.directVpc.throughput,
+          managedConnectionPooling: testResult.managedConnectionPooling.throughput,
         },
       ]);
     }
@@ -433,30 +443,45 @@ export default function Home() {
             unit="ms"
           />
 
-          {/* Table */}
+          {/* Throughput Chart */}
+          <PerformanceChart
+            data={throughputData}
+            title="Throughput Comparison"
+            description="Visual comparison of throughput (queries per second) between Direct VPC and Managed Connection Pooling."
+            dataKey="name"
+            name="Throughput"
+            unit="QPS"
+          />
+
+          {/* Consolidated Table */}
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Method</TableHead>
-                <TableHead>99th Percentile (ms)</TableHead>
-                <TableHead>95th Percentile (ms)</TableHead>
-                <TableHead>50th Percentile (ms)</TableHead>
+                <TableHead>Metric</TableHead>
+                <TableHead>Direct VPC</TableHead>
+                <TableHead>Managed Connection Pooling</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               <TableRow>
-                <TableCell className="font-medium">Direct VPC</TableCell>
-                <TableCell>{testResult.directVpc.p99.toFixed(2)}</TableCell>
-                <TableCell>{testResult.directVpc.p95.toFixed(2)}</TableCell>
+                <TableCell className="font-medium">50th Percentile (ms)</TableCell>
                 <TableCell>{testResult.directVpc.p50.toFixed(2)}</TableCell>
+                <TableCell>{testResult.managedConnectionPooling.p50.toFixed(2)}</TableCell>
               </TableRow>
               <TableRow>
-                <TableCell className="font-medium">
-                  Managed Connection Pooling
-                </TableCell>
-                <TableCell>{testResult.managedConnectionPooling.p99.toFixed(2)}</TableCell>
+                <TableCell className="font-medium">95th Percentile (ms)</TableCell>
+                <TableCell>{testResult.directVpc.p95.toFixed(2)}</TableCell>
                 <TableCell>{testResult.managedConnectionPooling.p95.toFixed(2)}</TableCell>
-                <TableCell>{testResult.managedConnectionPooling.p50.toFixed(2)}</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">99th Percentile (ms)</TableCell>
+                <TableCell>{testResult.directVpc.p99.toFixed(2)}</TableCell>
+                <TableCell>{testResult.managedConnectionPooling.p99.toFixed(2)}</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">Throughput (QPS)</TableCell>
+                <TableCell>{testResult.directVpc.throughput.toFixed(2)}</TableCell>
+                <TableCell>{testResult.managedConnectionPooling.throughput.toFixed(2)}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
