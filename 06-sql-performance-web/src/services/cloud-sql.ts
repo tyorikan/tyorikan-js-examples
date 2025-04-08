@@ -38,6 +38,8 @@ export interface QueryResult {
   rowsReturned: number;
 }
 
+import { Client } from 'pg';
+
 /**
  * Executes a SQL query against a Cloud SQL instance using the provided configuration.
  *
@@ -46,14 +48,31 @@ export interface QueryResult {
  * @returns A promise that resolves to a QueryResult object.
  */
 export async function executeSqlQuery(config: CloudSQLConfig, query: string): Promise<QueryResult> {
-  // Simulate query execution with a random delay
-  const executionTimeMs = Math.random() * 500 + 100; // Between 100ms and 600ms
-  await new Promise(resolve => setTimeout(resolve, executionTimeMs));
+  const client = new Client({
+    host: `/cloudsql/${config.instanceConnectionName}`,
+    user: config.dbUser,
+    password: config.dbPassword,
+    database: config.dbName,
+    port: 5432,
+  });
 
-  const rowsReturned = Math.floor(Math.random() * 1000); // Simulate some rows
+  const startTime = performance.now();
+  try {
+    await client.connect();
+    const result = await client.query(query);
+    const endTime = performance.now();
+    const executionTimeMs = endTime - startTime;
 
-  return {
-    executionTimeMs: executionTimeMs,
-    rowsReturned: rowsReturned,
-  };
+    return {
+      executionTimeMs: executionTimeMs,
+      rowsReturned: result.rowCount || 0,
+    };
+  } catch (error: any) {
+    console.error('Error executing query:', error);
+    throw new Error(`Failed to execute query: ${error.message}`);
+  } finally {
+    await client.end();
+  }
 }
+
+    
