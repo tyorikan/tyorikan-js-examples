@@ -50,7 +50,7 @@ export async function executeSqlQuery(config: CloudSQLConfig, query: string): Pr
   const executionTimeMs = Math.random() * 500 + 100; // Between 100ms and 600ms
   await new Promise(resolve => setTimeout(resolve, executionTimeMs));
 
-  const rowsReturned = Math.floor(Math.random() * 100); // Simulate some rows
+  const rowsReturned = Math.floor(Math.random() * 1000); // Simulate some rows
 
   return {
     executionTimeMs: executionTimeMs,
