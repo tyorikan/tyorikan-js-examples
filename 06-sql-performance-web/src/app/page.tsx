@@ -174,6 +174,7 @@ export default function Home() {
       dbName: "",
     });
   const [query, setQuery] = useState("SELECT 1;");
+	const [numQueries, setNumQueries] = useState(10000);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -182,17 +183,19 @@ export default function Home() {
   const [throughputData, setThroughputData] = useState<ChartDataSet>([]);
 
   const handleConfigChange = (
-    configType: "directVpc" | "managedConnectionPooling",
-    field: keyof CloudSQLConfig,
+    configType: "directVpc" | "managedConnectionPooling" | "numQueries",
+    field: keyof CloudSQLConfig | "numQueries",
     value: string,
   ) => {
     if (configType === "directVpc") {
       setDirectVpcConfig((prev) => ({ ...prev, [field]: value }));
-    } else {
+    } else if (configType === "managedConnectionPooling") {
       setManagedConnectionPoolingConfig((prev) => ({
         ...prev,
         [field]: value,
       }));
+    } else if (configType === "numQueries") {
+      setNumQueries(Number(value));
     }
   };
 
@@ -208,6 +211,7 @@ export default function Home() {
           directVpcConfig,
           managedConnectionPoolingConfig,
           query,
+					numQueries,
         }),
       });
 
@@ -403,6 +407,17 @@ export default function Home() {
           </AccordionContent>
         </AccordionItem>
       </Accordion>
+
+			<div className="mb-6">
+				<Label htmlFor="num-queries">Number of Queries</Label>
+				<Input
+					id="num-queries"
+					type="number"
+					className="w-full"
+					value={numQueries}
+					onChange={(e) => handleConfigChange("numQueries", "numQueries", e.target.value)}
+				/>
+			</div>
 
       <div className="mb-6">
         <Label htmlFor="query">SQL Query</Label>

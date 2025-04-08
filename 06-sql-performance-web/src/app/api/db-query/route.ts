@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     // Extract the query, directVpcConfig, and managedConnectionPoolingConfig from the parsed body
-    const { query, directVpcConfig, managedConnectionPoolingConfig } = body;
+    const { query, directVpcConfig, managedConnectionPoolingConfig, numQueries } = body;
 
     // Check if the query is present
     if (!query) {
@@ -47,10 +47,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'directVpcConfig and managedConnectionPoolingConfig are required' }, { status: 400 });
     }
 
-    const numQueries = 10000;
+    const numberOfQueries = numQueries || 10000;
 
     // Helper function to execute queries and measure latency and throughput
-    async function executeAndMeasure(config: CloudSQLConfig, query: string): Promise<{ latencies: number[], throughputValue: number, throughputUnit: string, qps: number }> {
+    async function executeAndMeasure(config: CloudSQLConfig, query: string, numQueries: number): Promise<{ latencies: number[], throughputValue: number, throughputUnit: string, qps: number }> {
       const latencies: number[] = [];
       let totalExecutionTime = 0;
       let totalRowsReturned = 0;
@@ -81,8 +81,8 @@ export async function POST(request: Request) {
     }
 
     // Execute the queries for both configurations
-    const directVpcResult = await executeAndMeasure(directVpcConfig, query);
-    const managedConnectionPoolingResult = await executeAndMeasure(managedConnectionPoolingConfig, query);
+    const directVpcResult = await executeAndMeasure(directVpcConfig, query, numberOfQueries);
+    const managedConnectionPoolingResult = await executeAndMeasure(managedConnectionPoolingConfig, query, numberOfQueries);
 
     const directVpcLatencies = directVpcResult.latencies;
     const managedConnectionPoolingLatencies = managedConnectionPoolingResult.latencies;
