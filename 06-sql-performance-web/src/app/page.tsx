@@ -160,23 +160,14 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({
 );
 
 export default function Home() {
-  const [directVpcConfig, setDirectVpcConfig] = useState<CloudSQLConfig>({
-    connectionType: "directVpc",
+  const [commonConfig, setCommonConfig] = useState<Omit<CloudSQLConfig, 'connectionType'>>({
     instanceConnectionName: "",
     dbUser: "",
 		dbPassword: "",
     dbName: "",
   });
-  const [managedConnectionPoolingConfig, setManagedConnectionPoolingConfig] =
-    useState<CloudSQLConfig>({
-      connectionType: "managedConnectionPooling",
-      instanceConnectionName: "",
-      dbUser: "",
-			dbPassword: "",
-      dbName: "",
-    });
-  const [query, setQuery] = useState("SELECT 1;");
 	const [numQueries, setNumQueries] = useState(10000);
+  const [query, setQuery] = useState("SELECT 1;");
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -185,25 +176,28 @@ export default function Home() {
   const [throughputData, setThroughputData] = useState<ChartDataSet>([]);
 
   const handleConfigChange = (
-    configType: "directVpc" | "managedConnectionPooling" | "numQueries",
-    field: keyof CloudSQLConfig | "numQueries",
+    field: keyof Omit<CloudSQLConfig, 'connectionType'> | "numQueries",
     value: string,
   ) => {
-    if (configType === "directVpc") {
-      setDirectVpcConfig((prev) => ({ ...prev, [field]: value }));
-    } else if (configType === "managedConnectionPooling") {
-      setManagedConnectionPoolingConfig((prev) => ({
-        ...prev,
-        [field]: value,
-      }));
-    } else if (configType === "numQueries") {
+    if (field === "numQueries") {
       setNumQueries(Number(value));
+    } else {
+      setCommonConfig((prev) => ({ ...prev, [field]: value }));
     }
   };
 
   const runTest = async () => {
     setIsLoading(true);
     try {
+      const directVpcConfig: CloudSQLConfig = {
+        ...commonConfig,
+        connectionType: "directVpc",
+      };
+      const managedConnectionPoolingConfig: CloudSQLConfig = {
+        ...commonConfig,
+        connectionType: "managedConnectionPooling",
+      };
+
       const response = await fetch("/api/db-query", {
         method: "POST",
         headers: {
@@ -289,26 +283,25 @@ export default function Home() {
         <AccordionItem value="connection">
           <AccordionTrigger>Connection Configuration</AccordionTrigger>
           <AccordionContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-6 mb-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Direct VPC Connection</CardTitle>
+                  <CardTitle>Connection Parameters</CardTitle>
                   <CardDescription>
-                    Configure parameters for direct VPC connection.
+                    Configure common parameters for both connection types.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-4">
                     <div>
-                      <Label htmlFor="direct-vpc-instance">
+                      <Label htmlFor="instance">
                         Instance Connection Name
                       </Label>
                       <Input
-                        id="direct-vpc-instance"
-                        value={directVpcConfig.instanceConnectionName}
+                        id="instance"
+                        value={commonConfig.instanceConnectionName}
                         onChange={(e) =>
                           handleConfigChange(
-                            "directVpc",
                             "instanceConnectionName",
                             e.target.value,
                           )
@@ -316,13 +309,12 @@ export default function Home() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="direct-vpc-user">DB User</Label>
+                      <Label htmlFor="user">DB User</Label>
                       <Input
-                        id="direct-vpc-user"
-                        value={directVpcConfig.dbUser}
+                        id="user"
+                        value={commonConfig.dbUser}
                         onChange={(e) =>
                           handleConfigChange(
-                            "directVpc",
                             "dbUser",
                             e.target.value,
                           )
@@ -330,14 +322,13 @@ export default function Home() {
                       />
                     </div>
 										<div>
-                      <Label htmlFor="direct-vpc-password">DB Password</Label>
+                      <Label htmlFor="password">DB Password</Label>
                       <Input
-                        id="direct-vpc-password"
+                        id="password"
                         type="password"
-                        value={directVpcConfig.dbPassword}
+                        value={commonConfig.dbPassword}
                         onChange={(e) =>
                           handleConfigChange(
-                            "directVpc",
                             "dbPassword",
                             e.target.value,
                           )
@@ -345,87 +336,12 @@ export default function Home() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="direct-vpc-db">DB Name</Label>
+                      <Label htmlFor="db">DB Name</Label>
                       <Input
-                        id="direct-vpc-db"
-                        value={directVpcConfig.dbName}
+                        id="db"
+                        value={commonConfig.dbName}
                         onChange={(e) =>
                           handleConfigChange(
-                            "directVpc",
-                            "dbName",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Managed Connection Pooling</CardTitle>
-                  <CardDescription>
-                    Configure parameters for managed connection pooling.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4">
-                    <div>
-                      <Label htmlFor="managed-pooling-instance">
-                        Instance Connection Name
-                      </Label>
-                      <Input
-                        id="managed-pooling-instance"
-                        value={
-                          managedConnectionPoolingConfig.instanceConnectionName
-                        }
-                        onChange={(e) =>
-                          handleConfigChange(
-                            "managedConnectionPooling",
-                            "instanceConnectionName",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="managed-pooling-user">DB User</Label>
-                      <Input
-                        id="managed-pooling-user"
-                        value={managedConnectionPoolingConfig.dbUser}
-                        onChange={(e) =>
-                          handleConfigChange(
-                            "managedConnectionPooling",
-                            "dbUser",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-										<div>
-                      <Label htmlFor="managed-pooling-password">DB Password</Label>
-                      <Input
-                        id="managed-pooling-password"
-                        type="password"
-                        value={managedConnectionPoolingConfig.dbPassword}
-                        onChange={(e) =>
-                          handleConfigChange(
-                            "managedConnectionPooling",
-                            "dbPassword",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="managed-pooling-db">DB Name</Label>
-                      <Input
-                        id="managed-pooling-db"
-                        value={managedConnectionPoolingConfig.dbName}
-                        onChange={(e) =>
-                          handleConfigChange(
-                            "managedConnectionPooling",
                             "dbName",
                             e.target.value,
                           )
@@ -447,7 +363,7 @@ export default function Home() {
 					type="number"
 					className="w-full"
 					value={numQueries}
-					onChange={(e) => handleConfigChange("numQueries", "numQueries", e.target.value)}
+					onChange={(e) => handleConfigChange("numQueries", e.target.value)}
 				/>
 			</div>
 
@@ -547,4 +463,3 @@ export default function Home() {
     </div>
   );
 }
-
