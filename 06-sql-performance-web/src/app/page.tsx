@@ -59,6 +59,9 @@ interface ChartData {
   name: string;
   directVpc: number;
   managedConnectionPooling: number;
+  p99?: number;
+  p95?: number;
+  p50?: number;
 }
 
 type ChartDataSet = ChartData[];
@@ -138,13 +141,13 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({
           <Legend />
           <Bar
             dataKey="directVpc"
-            barSize={30}
+            barSize={15}
             name="Direct VPC"
             fill="hsl(var(--primary))"
           />
           <Bar
             dataKey="managedConnectionPooling"
-            barSize={30}
+            barSize={15}
             name="Managed Connection Pooling"
             fill="hsl(var(--accent))"
           />
@@ -172,9 +175,7 @@ export default function Home() {
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const [executionTimeP99Data, setExecutionTimeP99Data] = useState<ChartDataSet>([]);
-  const [executionTimeP95Data, setExecutionTimeP95Data] = useState<ChartDataSet>([]);
-  const [executionTimeP50Data, setExecutionTimeP50Data] = useState<ChartDataSet>([]);
+  const [executionTimeData, setExecutionTimeData] = useState<ChartDataSet>([]);
   const [qpsData, setQpsData] = useState<ChartDataSet>([]);
   const [throughputData, setThroughputData] = useState<ChartDataSet>([]);
 
@@ -234,21 +235,17 @@ export default function Home() {
 
   useEffect(() => {
     if (testResult) {
-      setExecutionTimeP99Data([
+      setExecutionTimeData([
         {
           name: "99th Percentile",
           directVpc: testResult.directVpc.p99,
           managedConnectionPooling: testResult.managedConnectionPooling.p99,
         },
-      ]);
-      setExecutionTimeP95Data([
         {
           name: "95th Percentile",
           directVpc: testResult.directVpc.p95,
           managedConnectionPooling: testResult.managedConnectionPooling.p95,
         },
-      ]);
-      setExecutionTimeP50Data([
         {
           name: "50th Percentile",
           directVpc: testResult.directVpc.p50,
@@ -423,27 +420,11 @@ export default function Home() {
         <div className="mt-10">
           <h2 className="text-2xl font-bold mb-5 text-center">Results</h2>
 
-          {/* Execution Time Charts */}
+          {/* Execution Time Chart */}
           <PerformanceChart
-            data={executionTimeP99Data}
-            title="99th Percentile Execution Time Comparison"
-            description="Visual comparison of 99th percentile execution time between Direct VPC and Managed Connection Pooling."
-            dataKey="name"
-            name="Latency"
-            unit="ms"
-          />
-          <PerformanceChart
-            data={executionTimeP95Data}
-            title="95th Percentile Execution Time Comparison"
-            description="Visual comparison of 95th percentile execution time between Direct VPC and Managed Connection Pooling."
-            dataKey="name"
-            name="Latency"
-            unit="ms"
-          />
-          <PerformanceChart
-            data={executionTimeP50Data}
-            title="50th Percentile Execution Time Comparison"
-            description="Visual comparison of 50th percentile execution time between Direct VPC and Managed Connection Pooling."
+            data={executionTimeData}
+            title="Execution Time Comparison"
+            description="Visual comparison of execution time percentiles between Direct VPC and Managed Connection Pooling."
             dataKey="name"
             name="Latency"
             unit="ms"
