@@ -44,14 +44,12 @@ interface TestResult {
     p95: number;
     p50: number;
     throughput: number;
-    rowsPerSecond: number;
   };
   managedConnectionPooling: {
     p99: number;
     p95: number;
     p50: number;
     throughput: number;
-    rowsPerSecond: number;
   };
 }
 
@@ -261,9 +259,9 @@ export default function Home() {
       ]);
       setThroughputData([
         {
-          name: "Rows Per Second",
-          directVpc: testResult.directVpc.rowsPerSecond,
-          managedConnectionPooling: testResult.managedConnectionPooling.rowsPerSecond,
+          name: "Throughput",
+          directVpc: testResult.directVpc.throughput,
+          managedConnectionPooling: testResult.managedConnectionPooling.throughput,
         },
       ]);
     }
@@ -443,8 +441,8 @@ export default function Home() {
           {/* Throughput Chart */}
           <PerformanceChart
             data={throughputData}
-            title="Rows Per Second Comparison"
-            description="Visual comparison of rows per second between Direct VPC and Managed Connection Pooling."
+            title="Throughput Comparison"
+            description="Visual comparison of throughput between Direct VPC and Managed Connection Pooling."
             dataKey="name"
             name="Throughput"
             unit="rows/sec"
@@ -481,9 +479,9 @@ export default function Home() {
                 <TableCell>{testResult.managedConnectionPooling.throughput.toFixed(2)}</TableCell>
               </TableRow>
               <TableRow>
-                <TableCell className="font-medium">Rows Per Second</TableCell>
-                <TableCell>{testResult.directVpc.rowsPerSecond.toFixed(2)}</TableCell>
-                <TableCell>{testResult.managedConnectionPooling.rowsPerSecond.toFixed(2)}</TableCell>
+                <TableCell className="font-medium">Throughput (rows/sec)</TableCell>
+                <TableCell>{testResult.directVpc.throughput.toFixed(2)}</TableCell>
+                <TableCell>{testResult.managedConnectionPooling.throughput.toFixed(2)}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
