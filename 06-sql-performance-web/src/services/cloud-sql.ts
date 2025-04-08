@@ -22,6 +22,16 @@ export interface CloudSQLConfig {
    * The name of the database to connect to.
    */
   dbName: string;
+
+  /**
+   * The value of min pool size
+   */
+  minPoolSize?: number;
+
+  /**
+   * The value of max pool size
+   */
+  maxPoolSize?: number;
 }
 
 /**
@@ -38,11 +48,12 @@ export interface QueryResult {
   rowsReturned: number;
 }
 
-import { generateInstanceId, CloudSQLConnector } from '@google-cloud/cloud-sql-connector';
-import { Client } from 'pg';
+import { IpAddressTypes, Connector } from '@google-cloud/cloud-sql-connector';
+import pg from 'pg';
+const { Pool } = pg;
 
 // Initialize the Cloud SQL Connector
-const connector = new CloudSQLConnector();
+const connector = new Connector();
 
 async function createPool(config: CloudSQLConfig) {
   const instanceId = config.instanceConnectionName;
@@ -51,16 +62,25 @@ async function createPool(config: CloudSQLConfig) {
   const dbName = config.dbName;
   const connectionType = config.connectionType;
   const port = connectionType === 'managedConnectionPooling' ? 6432 : 5432;
+  const minPoolSize = config.minPoolSize;
+  const maxPoolSize = config.maxPoolSize
 
-  const options = {
-    instanceId: instanceId,
+  // Use the connector to create a connection pool
+  const clientOpts = await connector.getOptions({
+    instanceConnectionName: instanceId,
+    // ipType: IpAddressTypes.PUBLIC,
+    ipType: IpAddressTypes.PRIVATE,
+  });
+  const pool = new Pool({
+    ...clientOpts,
     user: dbUser,
     password: dbPassword,
     database: dbName,
-  };
+    port: port,
+    min: minPoolSize,
+    max: maxPoolSize,
+  });
 
-  // Use the connector to create a connection pool
-  const pool = connector.getPool(options);
   await pool.connect(); // Establish the connection.
   return pool;
 }

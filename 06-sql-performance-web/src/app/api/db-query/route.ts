@@ -36,6 +36,7 @@ export async function POST(request: Request) {
 
     // Extract the query, directVpcConfig, and managedConnectionPoolingConfig from the parsed body
     const { query, directVpcConfig, managedConnectionPoolingConfig, numQueries } = body;
+    managedConnectionPoolingConfig.minPoolSize = 100
 
     // Check if the query is present
     if (!query) {
