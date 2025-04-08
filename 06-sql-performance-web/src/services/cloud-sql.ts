@@ -17,7 +17,7 @@ export interface CloudSQLConfig {
   /**
    * The database password.
    */
-  dbPassword?: string;
+  dbPassword: string;
   /**
    * The name of the database to connect to.
    */

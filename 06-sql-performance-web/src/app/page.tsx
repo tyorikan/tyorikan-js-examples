@@ -164,6 +164,7 @@ export default function Home() {
     connectionType: "directVpc",
     instanceConnectionName: "",
     dbUser: "",
+		dbPassword: "",
     dbName: "",
   });
   const [managedConnectionPoolingConfig, setManagedConnectionPoolingConfig] =
@@ -171,6 +172,7 @@ export default function Home() {
       connectionType: "managedConnectionPooling",
       instanceConnectionName: "",
       dbUser: "",
+			dbPassword: "",
       dbName: "",
     });
   const [query, setQuery] = useState("SELECT 1;");
@@ -327,6 +329,21 @@ export default function Home() {
                         }
                       />
                     </div>
+										<div>
+                      <Label htmlFor="direct-vpc-password">DB Password</Label>
+                      <Input
+                        id="direct-vpc-password"
+                        type="password"
+                        value={directVpcConfig.dbPassword}
+                        onChange={(e) =>
+                          handleConfigChange(
+                            "directVpc",
+                            "dbPassword",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
                     <div>
                       <Label htmlFor="direct-vpc-db">DB Name</Label>
                       <Input
@@ -381,6 +398,21 @@ export default function Home() {
                           handleConfigChange(
                             "managedConnectionPooling",
                             "dbUser",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
+										<div>
+                      <Label htmlFor="managed-pooling-password">DB Password</Label>
+                      <Input
+                        id="managed-pooling-password"
+                        type="password"
+                        value={managedConnectionPoolingConfig.dbPassword}
+                        onChange={(e) =>
+                          handleConfigChange(
+                            "managedConnectionPooling",
+                            "dbPassword",
                             e.target.value,
                           )
                         }
@@ -515,3 +547,4 @@ export default function Home() {
     </div>
   );
 }
+
