@@ -37,9 +37,10 @@ export async function POST(request: Request) {
     const numQueries = 10000;
 
     // Helper function to execute queries and measure latency
-    async function executeAndMeasure(config: CloudSQLConfig, query: string): Promise<{ latencies: number[], throughput: number }> {
+    async function executeAndMeasure(config: CloudSQLConfig, query: string): Promise<{ latencies: number[], throughput: number, rowsPerSecond: number }> {
       const latencies: number[] = [];
       let totalExecutionTime = 0;
+      let totalRowsReturned = 0;
       const promises: Promise<QueryResult>[] = [];
 
       const startTime = performance.now();
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
         promises.push(executeSqlQuery(config, query).then(result => {
           latencies.push(result.executionTimeMs);
           totalExecutionTime += result.executionTimeMs;
+          totalRowsReturned += result.rowsReturned;
           return result;
         }));
       }
@@ -55,8 +57,9 @@ export async function POST(request: Request) {
       const endTime = performance.now();
       const totalTimeSeconds = (endTime - startTime) / 1000;
       const throughput = numQueries / totalTimeSeconds;
+      const rowsPerSecond = totalRowsReturned / totalTimeSeconds;
 
-      return { latencies, throughput };
+      return { latencies, throughput, rowsPerSecond };
     }
 
     // Execute the queries for both configurations
@@ -82,12 +85,14 @@ export async function POST(request: Request) {
         p95: directVpc95th,
         p50: directVpc50th,
         throughput: directVpcResult.throughput,
+        rowsPerSecond: directVpcResult.rowsPerSecond,
       },
       managedConnectionPooling: {
         p99: managedConnectionPooling99th,
         p95: managedConnectionPooling95th,
         p50: managedConnectionPooling50th,
         throughput: managedConnectionPoolingResult.throughput,
+        rowsPerSecond: managedConnectionPoolingResult.rowsPerSecond,
       },
     });
   } catch (error) {
