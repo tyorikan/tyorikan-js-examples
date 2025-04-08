@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CloudSQLConfig, QueryResult } from "@/services/cloud-sql";
+import { CloudSQLConfig } from "@/services/cloud-sql";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +19,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableCaption,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -40,8 +39,16 @@ import {
 } from "recharts";
 
 interface TestResult {
-  directVpc: QueryResult;
-  managedConnectionPooling: QueryResult;
+  directVpc: {
+    p99: number;
+    p95: number;
+    p50: number;
+  };
+  managedConnectionPooling: {
+    p99: number;
+    p95: number;
+    p50: number;
+  };
 }
 
 interface ChartData {
@@ -161,15 +168,9 @@ export default function Home() {
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const [executionTimeData, setExecutionTimeData] = useState<ChartDataSet>([]);
-  const [queriesPerSecondData, setQueriesPerSecondData] =
-    useState<ChartDataSet>([]);
-  const [throughputData, setThroughputData] = useState<ChartDataSet>([]);
-  const [directVpcThroughput, setDirectVpcThroughput] = useState<string>("N/A");
-  const [
-    managedConnectionPoolingThroughput,
-    setManagedConnectionPoolingThroughput,
-  ] = useState<string>("N/A");
+  const [p99Data, setP99Data] = useState<ChartDataSet>([]);
+  const [p95Data, setP95Data] = useState<ChartDataSet>([]);
+  const [p50Data, setP50Data] = useState<ChartDataSet>([]);
 
   const handleConfigChange = (
     configType: "directVpc" | "managedConnectionPooling",
@@ -227,56 +228,27 @@ export default function Home() {
 
   useEffect(() => {
     if (testResult) {
-      setExecutionTimeData([
+      setP99Data([
         {
-          name: "Execution Time",
-          directVpc: testResult.directVpc.executionTimeMs,
-          managedConnectionPooling:
-            testResult.managedConnectionPooling.executionTimeMs,
+          name: "99th Percentile",
+          directVpc: testResult.directVpc.p99,
+          managedConnectionPooling: testResult.managedConnectionPooling.p99,
         },
       ]);
-
-      setQueriesPerSecondData([
+      setP95Data([
         {
-          name: "Queries Per Second",
-          directVpc: 1000 / testResult.directVpc.executionTimeMs,
-          managedConnectionPooling:
-            1000 / testResult.managedConnectionPooling.executionTimeMs,
+          name: "95th Percentile",
+          directVpc: testResult.directVpc.p95,
+          managedConnectionPooling: testResult.managedConnectionPooling.p95,
         },
       ]);
-
-      setThroughputData([
+      setP50Data([
         {
-          name: "Throughput",
-          directVpc:
-            testResult.directVpc.rowsReturned /
-            (testResult.directVpc.executionTimeMs / 1000),
-          managedConnectionPooling:
-            testResult.managedConnectionPooling.rowsReturned /
-            (testResult.managedConnectionPooling.executionTimeMs / 1000),
+          name: "50th Percentile",
+          directVpc: testResult.directVpc.p50,
+          managedConnectionPooling: testResult.managedConnectionPooling.p50,
         },
       ]);
-    }
-  }, [testResult]);
-
-  useEffect(() => {
-    if (testResult) {
-      setDirectVpcThroughput(
-        (
-          testResult.directVpc.rowsReturned /
-          (testResult.directVpc.executionTimeMs / 1000)
-        ).toFixed(2),
-      );
-
-      setManagedConnectionPoolingThroughput(
-        (
-          testResult.managedConnectionPooling.rowsReturned /
-          (testResult.managedConnectionPooling.executionTimeMs / 1000)
-        ).toFixed(2),
-      );
-    } else {
-      setDirectVpcThroughput("N/A");
-      setManagedConnectionPoolingThroughput("N/A");
     }
   }, [testResult]);
 
@@ -431,77 +403,60 @@ export default function Home() {
         <div className="mt-10">
           <h2 className="text-2xl font-bold mb-5 text-center">Results</h2>
 
-          {/* Execution Time Chart */}
+          {/* 99th Percentile Chart */}
           <PerformanceChart
-            data={executionTimeData}
-            title="Execution Time Comparison"
-            description="Visual comparison of execution time between Direct VPC and Managed Connection Pooling."
+            data={p99Data}
+            title="99th Percentile Latency Comparison"
+            description="Visual comparison of 99th percentile latency between Direct VPC and Managed Connection Pooling."
             dataKey="name"
-            name="Execution Time"
+            name="Latency"
             unit="ms"
           />
 
-          {/* Queries Per Second Chart */}
+          {/* 95th Percentile Chart */}
           <PerformanceChart
-            data={queriesPerSecondData}
-            title="Queries Per Second (QPS) Comparison"
-            description="Visual comparison of queries per second between Direct VPC and Managed Connection Pooling."
+            data={p95Data}
+            title="95th Percentile Latency Comparison"
+            description="Visual comparison of 95th percentile latency between Direct VPC and Managed Connection Pooling."
             dataKey="name"
-            name="Queries Per Second"
-            unit="QPS"
+            name="Latency"
+            unit="ms"
           />
 
-          {/* Throughput Chart */}
+          {/* 50th Percentile Chart */}
           <PerformanceChart
-            data={throughputData}
-            title="Throughput Comparison"
-            description="Visual comparison of throughput between Direct VPC and Managed Connection Pooling."
+            data={p50Data}
+            title="50th Percentile Latency Comparison"
+            description="Visual comparison of 50th percentile latency between Direct VPC and Managed Connection Pooling."
             dataKey="name"
-            name="Throughput"
-            unit="rows/sec"
+            name="Latency"
+            unit="ms"
           />
 
           {/* Table */}
           <Table>
-            <TableCaption>
-              Comparison of throughput and latency between Direct VPC and
-              Managed Connection Pooling.
-            </TableCaption>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[200px]">Method</TableHead>
-                <TableHead>Execution Time (ms)</TableHead>
-                <TableHead>Rows Returned</TableHead>
-                <TableHead>Queries Per Second (QPS)</TableHead>
-                <TableHead>Throughput (rows/sec)</TableHead>
+                <TableHead>Method</TableHead>
+                <TableHead>99th Percentile (ms)</TableHead>
+                <TableHead>95th Percentile (ms)</TableHead>
+                <TableHead>50th Percentile (ms)</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               <TableRow>
                 <TableCell className="font-medium">Direct VPC</TableCell>
-                <TableCell>{testResult.directVpc.executionTimeMs}</TableCell>
-                <TableCell>{testResult.directVpc.rowsReturned}</TableCell>
-                <TableCell>
-                  {(1000 / testResult.directVpc.executionTimeMs).toFixed(2)}
-                </TableCell>
-                <TableCell>{directVpcThroughput}</TableCell>
+                <TableCell>{testResult.directVpc.p99.toFixed(2)}</TableCell>
+                <TableCell>{testResult.directVpc.p95.toFixed(2)}</TableCell>
+                <TableCell>{testResult.directVpc.p50.toFixed(2)}</TableCell>
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">
                   Managed Connection Pooling
                 </TableCell>
-                <TableCell>
-                  {testResult.managedConnectionPooling.executionTimeMs}
-                </TableCell>
-                <TableCell>
-                  {testResult.managedConnectionPooling.rowsReturned}
-                </TableCell>
-                <TableCell>
-                  {(
-                    1000 / testResult.managedConnectionPooling.executionTimeMs
-                  ).toFixed(2)}
-                </TableCell>
-                <TableCell>{managedConnectionPoolingThroughput}</TableCell>
+                <TableCell>{testResult.managedConnectionPooling.p99.toFixed(2)}</TableCell>
+                <TableCell>{testResult.managedConnectionPooling.p95.toFixed(2)}</TableCell>
+                <TableCell>{testResult.managedConnectionPooling.p50.toFixed(2)}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
