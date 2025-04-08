@@ -45,6 +45,7 @@ interface TestResult {
     p50: number;
     throughputValue: number;
     throughputUnit: string;
+	qps: number;
   };
   managedConnectionPooling: {
     p99: number;
@@ -52,6 +53,7 @@ interface TestResult {
     p50: number;
     throughputValue: number;
     throughputUnit: string;
+	qps: number;
   };
 }
 
@@ -255,8 +257,8 @@ export default function Home() {
       setQpsData([
         {
           name: "Queries Per Second",
-          directVpc: 100, //testResult.directVpc.throughputValue,
-          managedConnectionPooling: 100, //testResult.managedConnectionPooling.throughputValue,
+          directVpc: testResult.directVpc.qps,
+          managedConnectionPooling: testResult.managedConnectionPooling.qps,
         },
       ]);
       setThroughputData([
@@ -477,8 +479,8 @@ export default function Home() {
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">Queries Per Second (QPS)</TableCell>
-                <TableCell>TBD</TableCell>
-                <TableCell>TBD</TableCell>
+                <TableCell>{testResult.directVpc.qps.toFixed(2)}</TableCell>
+                <TableCell>{testResult.managedConnectionPooling.qps.toFixed(2)}</TableCell>
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">Throughput ({testResult.directVpc.throughputUnit})</TableCell>

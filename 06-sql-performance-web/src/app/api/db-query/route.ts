@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     const numQueries = 10000;
 
     // Helper function to execute queries and measure latency and throughput
-    async function executeAndMeasure(config: CloudSQLConfig, query: string): Promise<{ latencies: number[], throughputValue: number, throughputUnit: string }> {
+    async function executeAndMeasure(config: CloudSQLConfig, query: string): Promise<{ latencies: number[], throughputValue: number, throughputUnit: string, qps: number }> {
       const latencies: number[] = [];
       let totalExecutionTime = 0;
       let totalRowsReturned = 0;
@@ -74,7 +74,10 @@ export async function POST(request: Request) {
       const totalDataTransferred = totalRowsReturned * 1024; // in bytes
       const { value: throughputValue, unit: throughputUnit } = calculateThroughput(totalDataTransferred, totalTimeSeconds);
 
-      return { latencies, throughputValue, throughputUnit };
+      // Calculate queries per second (QPS)
+      const qps = numQueries / totalTimeSeconds;
+
+      return { latencies, throughputValue, throughputUnit, qps };
     }
 
     // Execute the queries for both configurations
@@ -101,6 +104,7 @@ export async function POST(request: Request) {
         p50: directVpc50th,
         throughputValue: directVpcResult.throughputValue,
         throughputUnit: directVpcResult.throughputUnit,
+        qps: directVpcResult.qps,
       },
       managedConnectionPooling: {
         p99: managedConnectionPooling99th,
@@ -108,6 +112,7 @@ export async function POST(request: Request) {
         p50: managedConnectionPooling50th,
         throughputValue: managedConnectionPoolingResult.throughputValue,
         throughputUnit: managedConnectionPoolingResult.throughputUnit,
+        qps: managedConnectionPoolingResult.qps,
       },
     });
   } catch (error) {
