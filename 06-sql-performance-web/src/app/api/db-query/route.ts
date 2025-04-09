@@ -1,4 +1,4 @@
-import { executeSqlQuery, CloudSQLConfig, QueryResult } from '@/services/cloud-sql';
+import { executeSqlQuery, CloudSQLConfig, initializePools } from '@/services/cloud-sql';
 import { NextResponse } from 'next/server';
 
 // Function to calculate percentile
@@ -29,45 +29,61 @@ function calculateThroughput(totalData: number, totalTimeSeconds: number): { val
   }
 }
 
+let poolsInitialized = false; // Add a flag to track initialization
+
 export async function POST(request: Request) {
+  // Initialize pools if not already initialized
+  if (!poolsInitialized) {
+    await initializePools();
+    poolsInitialized = true;
+  }
   try {
     // Parse the request body as JSON
     const body = await request.json();
 
-    // Extract the query, directVpcConfig, and managedConnectionPoolingConfig from the parsed body
-    const { query, directVpcConfig, managedConnectionPoolingConfig, numQueries } = body;
-    managedConnectionPoolingConfig.minPoolSize = 100
+    const { query, targetQps, durationSeconds } = body;
 
     // Check if the query is present
     if (!query) {
       return NextResponse.json({ error: 'Query is required' }, { status: 400 });
     }
 
-    // Check if directVpcConfig and managedConnectionPoolingConfig are present
-    if (!directVpcConfig || !managedConnectionPoolingConfig) {
-      return NextResponse.json({ error: 'directVpcConfig and managedConnectionPoolingConfig are required' }, { status: 400 });
+    // Validate targetQps and durationSeconds
+    if (!targetQps || !durationSeconds) {
+      return NextResponse.json({ error: 'targetQps and durationSeconds are required' }, { status: 400 });
     }
 
-    const numberOfQueries = numQueries || 10000;
-
-    // Helper function to execute queries and measure latency and throughput
-    async function executeAndMeasure(config: CloudSQLConfig, query: string, numQueries: number): Promise<{ latencies: number[], throughputValue: number, throughputUnit: string, qps: number }> {
+    // Helper function to execute queries with rate limiting and measure latency and throughput
+    async function executeAndMeasureWithRateLimit(key: string, query: string, targetQps: number, durationSeconds: number): Promise<{ latencies: number[], throughputValue: number, throughputUnit: string, qps: number, completedQueries: number, failedQueries: number }> {
       const latencies: number[] = [];
-      let totalExecutionTime = 0;
       let totalRowsReturned = 0;
-      const promises: Promise<QueryResult>[] = [];
-
+      let completedQueries = 0;
+      let failedQueries = 0;
       const startTime = performance.now();
-      for (let i = 0; i < numQueries; i++) {
-        promises.push(executeSqlQuery(config, query).then(result => {
-          latencies.push(result.executionTimeMs);
-          totalExecutionTime += result.executionTimeMs;
-          totalRowsReturned += result.rowsReturned;
-          return result;
-        }));
-      }
+      const intervalMs = 1000 / targetQps; // Interval between queries in milliseconds
+      const promises: Promise<void>[] = [];
 
+      const executeQueryWithLatency = async () => {
+        const queryStartTime = performance.now();
+        try {
+          const result = await executeSqlQuery(key, query);
+          const queryEndTime = performance.now();
+          const executionTimeMs = queryEndTime - queryStartTime;
+          latencies.push(executionTimeMs);
+          totalRowsReturned += result.rowsReturned;
+          completedQueries++;
+        } catch (error) {
+          console.error('Error executing query:', error);
+          failedQueries++;
+        }
+      };
+
+      for (let i = 0; i < durationSeconds * targetQps; i++) {
+        promises.push(executeQueryWithLatency());
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      }
       await Promise.all(promises);
+
       const endTime = performance.now();
       const totalTimeSeconds = (endTime - startTime) / 1000;
 
@@ -76,14 +92,14 @@ export async function POST(request: Request) {
       const { value: throughputValue, unit: throughputUnit } = calculateThroughput(totalDataTransferred, totalTimeSeconds);
 
       // Calculate queries per second (QPS)
-      const qps = numQueries / totalTimeSeconds;
+      const qps = completedQueries / totalTimeSeconds;
 
-      return { latencies, throughputValue, throughputUnit, qps };
+      return { latencies, throughputValue, throughputUnit, qps, completedQueries, failedQueries };
     }
 
-    // Execute the queries for both configurations
-    const directVpcResult = await executeAndMeasure(directVpcConfig, query, numberOfQueries);
-    const managedConnectionPoolingResult = await executeAndMeasure(managedConnectionPoolingConfig, query, numberOfQueries);
+    // Execute the queries for both configurations with rate limiting
+    const directVpcResult = await executeAndMeasureWithRateLimit("directVpc", query, targetQps, durationSeconds);
+    const managedConnectionPoolingResult = await executeAndMeasureWithRateLimit("managedConnectionPooling", query, targetQps, durationSeconds);
 
     const directVpcLatencies = directVpcResult.latencies;
     const managedConnectionPoolingLatencies = managedConnectionPoolingResult.latencies;
@@ -106,6 +122,8 @@ export async function POST(request: Request) {
         throughputValue: directVpcResult.throughputValue,
         throughputUnit: directVpcResult.throughputUnit,
         qps: directVpcResult.qps,
+        successfulQueries: directVpcResult.completedQueries,
+        failedQueries: directVpcResult.failedQueries,
       },
       managedConnectionPooling: {
         p99: managedConnectionPooling99th,
@@ -114,6 +132,8 @@ export async function POST(request: Request) {
         throughputValue: managedConnectionPoolingResult.throughputValue,
         throughputUnit: managedConnectionPoolingResult.throughputUnit,
         qps: managedConnectionPoolingResult.qps,
+        successfulQueries: managedConnectionPoolingResult.completedQueries,
+        failedQueries: managedConnectionPoolingResult.failedQueries,
       },
     });
   } catch (error) {

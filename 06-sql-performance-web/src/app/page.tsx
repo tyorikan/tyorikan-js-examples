@@ -45,7 +45,9 @@ interface TestResult {
     p50: number;
     throughputValue: number;
     throughputUnit: string;
-	qps: number;
+    qps: number;
+    successfulQueries: number; // Add successfulQueries
+    failedQueries: number; // Add failedQueries
   };
   managedConnectionPooling: {
     p99: number;
@@ -53,7 +55,9 @@ interface TestResult {
     p50: number;
     throughputValue: number;
     throughputUnit: string;
-	qps: number;
+    qps: number;
+    successfulQueries: number; // Add successfulQueries
+    failedQueries: number; // Add failedQueries
   };
 }
 
@@ -160,13 +164,16 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({
 );
 
 export default function Home() {
-  const [commonConfig, setCommonConfig] = useState<Omit<CloudSQLConfig, 'connectionType'>>({
+  const [commonConfig, setCommonConfig] = useState<
+    Omit<CloudSQLConfig, "connectionType">
+  >({
     instanceConnectionName: "",
     dbUser: "",
-		dbPassword: "",
+    dbPassword: "",
     dbName: "",
   });
-	const [numQueries, setNumQueries] = useState(10000);
+  const [targetQps, setTargetQps] = useState(100);
+  const [durationSeconds, setDurationSeconds] = useState(60);
   const [query, setQuery] = useState("SELECT 1;");
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -176,11 +183,16 @@ export default function Home() {
   const [throughputData, setThroughputData] = useState<ChartDataSet>([]);
 
   const handleConfigChange = (
-    field: keyof Omit<CloudSQLConfig, 'connectionType'> | "numQueries",
+    field:
+      | keyof Omit<CloudSQLConfig, "connectionType">
+      | "targetQps"
+      | "durationSeconds",
     value: string,
   ) => {
-    if (field === "numQueries") {
-      setNumQueries(Number(value));
+    if (field === "targetQps") {
+      setTargetQps(Number(value));
+    } else if (field === "durationSeconds") {
+      setDurationSeconds(Number(value));
     } else {
       setCommonConfig((prev) => ({ ...prev, [field]: value }));
     }
@@ -207,7 +219,8 @@ export default function Home() {
           directVpcConfig,
           managedConnectionPoolingConfig,
           query,
-					numQueries,
+          targetQps,
+          durationSeconds,
         }),
       });
 
@@ -265,7 +278,8 @@ export default function Home() {
         {
           name: "Throughput",
           directVpc: testResult.directVpc.throughputValue,
-          managedConnectionPooling: testResult.managedConnectionPooling.throughputValue,
+          managedConnectionPooling:
+            testResult.managedConnectionPooling.throughputValue,
         },
       ]);
     }
@@ -279,93 +293,29 @@ export default function Home() {
         SQL Performance Tester
       </h1>
 
-      <Accordion type="single" collapsible className="w-full">
-        <AccordionItem value="connection">
-          <AccordionTrigger>Connection Configuration</AccordionTrigger>
-          <AccordionContent>
-            <div className="grid grid-cols-1 md:grid-cols-1 gap-6 mb-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Connection Parameters</CardTitle>
-                  <CardDescription>
-                    Configure common parameters for both connection types.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4">
-                    <div>
-                      <Label htmlFor="instance">
-                        Instance Connection Name
-                      </Label>
-                      <Input
-                        id="instance"
-                        value={commonConfig.instanceConnectionName}
-                        onChange={(e) =>
-                          handleConfigChange(
-                            "instanceConnectionName",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="user">DB User</Label>
-                      <Input
-                        id="user"
-                        value={commonConfig.dbUser}
-                        onChange={(e) =>
-                          handleConfigChange(
-                            "dbUser",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-										<div>
-                      <Label htmlFor="password">DB Password</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        value={commonConfig.dbPassword}
-                        onChange={(e) =>
-                          handleConfigChange(
-                            "dbPassword",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="db">DB Name</Label>
-                      <Input
-                        id="db"
-                        value={commonConfig.dbName}
-                        onChange={(e) =>
-                          handleConfigChange(
-                            "dbName",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+      <div className="mb-6">
+        <Label htmlFor="target-qps">Target QPS</Label>
+        <Input
+          id="target-qps"
+          type="number"
+          className="w-full"
+          value={targetQps}
+          onChange={(e) => handleConfigChange("targetQps", e.target.value)}
+        />
+      </div>
 
-			<div className="mb-6">
-				<Label htmlFor="num-queries">Number of Queries</Label>
-				<Input
-					id="num-queries"
-					type="number"
-					className="w-full"
-					value={numQueries}
-					onChange={(e) => handleConfigChange("numQueries", e.target.value)}
-				/>
-			</div>
+      <div className="mb-6">
+        <Label htmlFor="duration-seconds">Duration (seconds)</Label>
+        <Input
+          id="duration-seconds"
+          type="number"
+          className="w-full"
+          value={durationSeconds}
+          onChange={(e) =>
+            handleConfigChange("durationSeconds", e.target.value)
+          }
+        />
+      </div>
 
       <div className="mb-6">
         <Label htmlFor="query">SQL Query</Label>
@@ -426,29 +376,69 @@ export default function Home() {
             </TableHeader>
             <TableBody>
               <TableRow>
-                <TableCell className="font-medium">50th Percentile Latency (ms)</TableCell>
+                <TableCell className="font-medium">
+                  50th Percentile Latency (ms)
+                </TableCell>
                 <TableCell>{testResult.directVpc.p50.toFixed(2)}</TableCell>
-                <TableCell>{testResult.managedConnectionPooling.p50.toFixed(2)}</TableCell>
+                <TableCell>
+                  {testResult.managedConnectionPooling.p50.toFixed(2)}
+                </TableCell>
               </TableRow>
               <TableRow>
-                <TableCell className="font-medium">95th Percentile Latency (ms)</TableCell>
+                <TableCell className="font-medium">
+                  95th Percentile Latency (ms)
+                </TableCell>
                 <TableCell>{testResult.directVpc.p95.toFixed(2)}</TableCell>
-                <TableCell>{testResult.managedConnectionPooling.p95.toFixed(2)}</TableCell>
+                <TableCell>
+                  {testResult.managedConnectionPooling.p95.toFixed(2)}
+                </TableCell>
               </TableRow>
               <TableRow>
-                <TableCell className="font-medium">99th Percentile Latency (ms)</TableCell>
+                <TableCell className="font-medium">
+                  99th Percentile Latency (ms)
+                </TableCell>
                 <TableCell>{testResult.directVpc.p99.toFixed(2)}</TableCell>
-                <TableCell>{testResult.managedConnectionPooling.p99.toFixed(2)}</TableCell>
+                <TableCell>
+                  {testResult.managedConnectionPooling.p99.toFixed(2)}
+                </TableCell>
               </TableRow>
               <TableRow>
-                <TableCell className="font-medium">Queries Per Second (QPS)</TableCell>
+                <TableCell className="font-medium">
+                  Queries Per Second (QPS)
+                </TableCell>
                 <TableCell>{testResult.directVpc.qps.toFixed(2)}</TableCell>
-                <TableCell>{testResult.managedConnectionPooling.qps.toFixed(2)}</TableCell>
+                <TableCell>
+                  {testResult.managedConnectionPooling.qps.toFixed(2)}
+                </TableCell>
               </TableRow>
               <TableRow>
-                <TableCell className="font-medium">Throughput ({testResult.directVpc.throughputUnit})</TableCell>
-                <TableCell>{testResult.directVpc.throughputValue.toFixed(2)}</TableCell>
-                <TableCell>{testResult.managedConnectionPooling.throughputValue.toFixed(2)}</TableCell>
+                <TableCell className="font-medium">
+                  Throughput ({testResult.directVpc.throughputUnit})
+                </TableCell>
+                <TableCell>
+                  {testResult.directVpc.throughputValue.toFixed(2)}
+                </TableCell>
+                <TableCell>
+                  {testResult.managedConnectionPooling.throughputValue.toFixed(
+                    2,
+                  )}
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">Successful Queries</TableCell>
+                <TableCell>
+                  {testResult.directVpc.successfulQueries}
+                </TableCell>
+                <TableCell>
+                  {testResult.managedConnectionPooling.successfulQueries}
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">Failed Queries</TableCell>
+                <TableCell>{testResult.directVpc.failedQueries}</TableCell>
+                <TableCell>
+                  {testResult.managedConnectionPooling.failedQueries}
+                </TableCell>
               </TableRow>
             </TableBody>
           </Table>
