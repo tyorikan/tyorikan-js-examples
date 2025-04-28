@@ -101,6 +101,18 @@ const statusItemStyle = {
   borderRadius: '4px',
 };
 
+// JSON表示用のスタイル
+const jsonStyle = {
+  whiteSpace: 'pre-wrap', // 改行を保持
+  overflowWrap: 'break-word' as 'break-word', // 長い単語を折り返す
+  fontFamily: 'monospace', // 等幅フォント
+  fontSize: '12px',
+  backgroundColor: 'hsl(var(--muted))',
+  padding: '10px',
+  borderRadius: '4px',
+  overflow: 'auto', // 必要に応じてスクロールバーを表示
+};
+
 export default function Home() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -467,6 +479,13 @@ export default function Home() {
                 </span>
               </div>
             )}
+            {/* JSON形式でcurrentUserを表示 */}
+            <div style={statusItemStyle}>
+              <span>Current User (JSON):</span>
+              <pre style={jsonStyle}>
+                {JSON.stringify(currentUser, null, 2)}
+              </pre>
+            </div>
           </>
         )}
       </CardContent>
