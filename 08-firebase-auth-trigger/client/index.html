@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase匿名認証とPub/Sub連携デモ</title>
+    <script src="https://www.gstatic.com/firebasejs/11.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore-compat.js"></script>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; margin-top: 50px; background-color: #f4f7f6; color: #333; }
+        .container { background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center; }
+        h1 { color: #2c3e50; }
+        button {
+            background-color: #3498db; color: white; border: none; padding: 12px 25px;
+            text-align: center; text-decoration: none; display: inline-block;
+            font-size: 16px; margin: 10px 2px; cursor: pointer; border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+        button:hover { background-color: #2980b9; }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        #userInfo { margin-top: 20px; padding: 15px; background-color: #ecf0f1; border-radius: 5px; word-break: break-all; }
+        #statusMessage { margin-top: 15px; font-style: italic; color: #7f8c8d; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Firebase匿名認証 & Firestore連携</h1>
+        <p>下のボタンをクリックして匿名ユーザーとしてサインインし、ユーザー情報をFirestoreに保存します。</p>
+        <button id="signInButton">匿名でサインイン</button>
+        <div id="userInfo">ユーザー情報はここに表示されます</div>
+        <div id="statusMessage"></div>
+    </div>
+
+    <script>
+        // TODO: ★★★ ご自身のFirebaseプロジェクトの設定に置き換えてください ★★★
+        const firebaseConfig = {
+            apiKey: "FIREBASE_API_KEY",
+            authDomain: "FIREBASE_AUTH_DOMAIN",
+            projectId: "FIREBASE_PROJECT_ID"
+        };
+
+        // Firebaseアプリを初期化
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore(); // Firestoreインスタンスを取得
+
+        const signInButton = document.getElementById('signInButton');
+        const userInfoDiv = document.getElementById('userInfo');
+        const statusMessageDiv = document.getElementById('statusMessage');
+
+        // Firestoreにユーザー情報を書き込む関数
+        async function saveUserToFirestore(user) {
+            if (!user) return;
+            const userRef = db.collection('users').doc(user.uid);
+            try {
+                // ユーザー情報をFirestoreにセット (存在しない場合は作成、存在する場合は上書き)
+                // ここでは初回作成時のみを想定していますが、必要に応じて更新処理も考慮できます。
+                // 冪等性を保つため、Cloud Function側でSubscriptionの存在確認は行いますが、
+                // Firestoreへの書き込み自体は、サインインのたびに行っても問題ないようにします。
+                // (ただし、Functionのトリガーはドキュメント作成時のみにしたい)
+                // そのため、ここではsetではなく、getして存在確認後に追加するなどがより丁寧ですが、
+                // Function側でSubscriptionの重複作成を防ぐので、ここではシンプルにsetします。
+                // 実際には、Functionのトリガーが `onCreate` なので、同じユーザーIDで何度も書き込んでも
+                // Functionがトリガーされるのは最初の1回だけです（ドキュメントが新規作成されたとき）。
+                await userRef.set({
+                    uid: user.uid,
+                    isAnonymous: user.isAnonymous,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp() // 作成日時を記録
+                }, { merge: true }); // 既にドキュメントがあっても他のフィールドを消さずにマージ（今回はあまり意味ないが念のため）
+                statusMessageDiv.textContent = 'ユーザー情報をFirestoreに保存しました。';
+                console.log("User data saved to Firestore for UID:", user.uid);
+            } catch (error) {
+                console.error("Firestoreへのユーザー情報保存エラー:", error);
+                statusMessageDiv.textContent = `Firestoreエラー: ${error.message}`;
+            }
+        }
+
+
+        // 認証状態の監視
+        auth.onAuthStateChanged(async user => {
+            if (user) {
+                userInfoDiv.textContent = `サインイン中: ユーザーID: ${user.uid} (匿名ユーザー)`;
+                signInButton.textContent = 'サインアウト';
+                signInButton.disabled = false;
+                statusMessageDiv.textContent = 'サインインしました。ユーザー情報をFirestoreに保存します...';
+                // サインイン時にFirestoreへユーザー情報を保存
+                await saveUserToFirestore(user);
+            } else {
+                userInfoDiv.textContent = 'サインアウトしています。';
+                signInButton.textContent = '匿名でサインイン';
+                signInButton.disabled = false;
+                statusMessageDiv.textContent = '';
+            }
+        });
+
+        // サインイン/サインアウトボタンのクリックイベント
+        signInButton.addEventListener('click', async () => {
+            signInButton.disabled = true;
+            if (auth.currentUser) {
+                try {
+                    await auth.signOut();
+                    statusMessageDiv.textContent = 'サインアウトしました。';
+                } catch (error) {
+                    console.error("サインアウトエラー:", error);
+                    userInfoDiv.textContent = `サインアウトエラー: ${error.message}`;
+                    statusMessageDiv.textContent = 'サインアウトに失敗しました。';
+                    signInButton.disabled = false;
+                }
+            } else {
+                try {
+                    statusMessageDiv.textContent = 'サインイン処理中...';
+                    const userCredential = await auth.signInAnonymously();
+                    console.log("匿名サインイン成功:", userCredential.user);
+                    // onAuthStateChanged がFirestoreへの書き込みを含む後続処理を行います
+                } catch (error) {
+                    console.error("匿名サインインエラー:", error);
+                    userInfoDiv.textContent = `匿名サインインエラー: ${error.message}`;
+                    statusMessageDiv.textContent = '匿名サインインに失敗しました。';
+                    signInButton.disabled = false;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
